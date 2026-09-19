@@ -34,6 +34,32 @@ class AlarmScheduler(private val context: Context) {
         }.onFailure { Log.e(TAG, "could not schedule fallback alarm", it) }
     }
 
+    /**
+     * Ring as soon as the system can get to it.
+     *
+     * Not a direct service start: from Android 12 an app in the background may not start a
+     * foreground service, and the watch's "wake now" arrives on a listener service that Play
+     * Services started, which carries no exemption. An exact alarm firing does carry one, so
+     * the alarm is bounced through AlarmManager and the ring starts from inside the receiver.
+     */
+    fun fireNow(sessionId: String, reason: String) {
+        val operation = pendingIntent(REQUEST_FIRE, sessionId, reason, AlarmReceiver.ACTION_FIRE)
+        val triggerAt = System.currentTimeMillis() + IMMEDIATE_DELAY_MILLIS
+        val show = PendingIntent.getActivity(
+            context, REQUEST_SHOW,
+            Intent(context, MainActivity::class.java),
+            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
+        )
+        runCatching {
+            manager.setAlarmClock(AlarmManager.AlarmClockInfo(triggerAt, show), operation)
+        }.onFailure {
+            Log.e(TAG, "could not schedule the immediate alarm", it)
+            runCatching {
+                manager.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, triggerAt, operation)
+            }
+        }
+    }
+
     fun scheduleSnooze(sessionId: String, minutes: Int) {
         val triggerAt = System.currentTimeMillis() + minutes.coerceAtLeast(1) * 60_000L
         val operation = pendingIntent(REQUEST_SNOOZE, sessionId, "Snooze finished", AlarmReceiver.ACTION_SNOOZE_END)
@@ -50,6 +76,7 @@ class AlarmScheduler(private val context: Context) {
         listOf(
             REQUEST_FALLBACK to AlarmReceiver.ACTION_FALLBACK,
             REQUEST_SNOOZE to AlarmReceiver.ACTION_SNOOZE_END,
+            REQUEST_FIRE to AlarmReceiver.ACTION_FIRE,
         ).forEach { (request, action) ->
             manager.cancel(pendingIntent(request, "", "", action))
         }
@@ -75,5 +102,9 @@ class AlarmScheduler(private val context: Context) {
         const val REQUEST_FALLBACK = 100
         const val REQUEST_SNOOZE = 101
         const val REQUEST_SHOW = 102
+        const val REQUEST_FIRE = 103
+
+        /** Long enough for AlarmManager to treat it as a real alarm, short enough to be instant. */
+        const val IMMEDIATE_DELAY_MILLIS = 200L
     }
 }

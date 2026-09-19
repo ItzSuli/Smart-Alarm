@@ -234,17 +234,27 @@ class AlarmRingService : Service() {
         private const val RAMP_STEP_MILLIS = 3_000L
         private const val MAX_RING_MILLIS = 15 * 60 * 1000L
 
+        /**
+         * Only ever called from an alarm broadcast or a visible activity. Starting a foreground
+         * service from anywhere else is refused on Android 12 and up, so the caller is
+         * responsible for being somewhere that carries an exemption.
+         */
         fun start(context: Context, reason: String, quality: Int) {
             val intent = Intent(context, AlarmRingService::class.java)
                 .putExtra(EXTRA_REASON, reason)
                 .putExtra(EXTRA_QUALITY, quality)
-            context.startForegroundService(intent)
+            runCatching { context.startForegroundService(intent) }
+                .onFailure { Log.e(TAG, "the system refused to start the alarm service", it) }
         }
 
         fun stop(context: Context) {
-            context.startService(
-                Intent(context, AlarmRingService::class.java).setAction(ACTION_STOP)
-            )
+            // Delivering to an already-running foreground service is allowed, but if it has
+            // already stopped itself this throws rather than doing nothing.
+            runCatching {
+                context.startService(
+                    Intent(context, AlarmRingService::class.java).setAction(ACTION_STOP)
+                )
+            }.onFailure { Log.d(TAG, "alarm service was not running", it) }
         }
     }
 }

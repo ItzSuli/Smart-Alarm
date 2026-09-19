@@ -50,6 +50,9 @@ class SessionManager(
 
     private var engine: SleepSessionEngine? = null
 
+    /** Carried from the watch's wake-now message to the alarm broadcast that acts on it. */
+    private var pendingWakeQuality: Int = 0
+
     private val _phase = MutableStateFlow(PhonePhase.IDLE)
     val phase: StateFlow<PhonePhase> = _phase.asStateFlow()
 
@@ -218,10 +221,22 @@ class SessionManager(
         if (session != null && session.sessionId != event.sessionId) return
         val wakeMode = session?.plan?.wakeMode ?: settings.plan.value.wakeMode
         _phase.value = PhonePhase.ALARM
+        pendingWakeQuality = event.wakeQualityPercent
         if (wakeMode.usesPhone) {
-            AlarmRingService.start(context, event.reason, event.wakeQualityPercent)
+            // Bounced through AlarmManager rather than started directly: this runs on a listener
+            // service Play Services woke, which may not start a foreground service on Android 12+.
+            scheduler.fireNow(event.sessionId, event.reason)
+        } else {
+            scheduler.cancelAll()
         }
-        scheduler.cancelAll()
+    }
+
+    /** Ring, no questions asked. Reached only from an alarm broadcast, so the FGS start is allowed. */
+    fun onRingNow(sessionId: String, reason: String) {
+        val session = engine
+        if (session != null && session.sessionId != sessionId) return
+        _phase.value = PhonePhase.ALARM
+        AlarmRingService.start(context, reason, pendingWakeQuality)
     }
 
     fun onWatchDismiss(event: AlarmEvent) {

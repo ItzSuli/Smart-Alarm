@@ -1,6 +1,7 @@
 package com.smartalarm.wear.service
 
 import android.content.Context
+import android.net.Uri
 import android.util.Log
 import com.google.android.gms.wearable.PutDataRequest
 import com.google.android.gms.wearable.Wearable
@@ -34,8 +35,8 @@ class PhoneBridge(private val context: Context) {
     private val messageClient by lazy { Wearable.getMessageClient(context) }
     private val nodeClient by lazy { Wearable.getNodeClient(context) }
 
-    private var revision = 0L
     private var epochSequence = 0L
+    private var cachedLocalNodeId: String? = null
 
     suspend fun isPhoneConnected(): Boolean = runCatching {
         nodeClient.connectedNodes.await().isNotEmpty()
@@ -56,6 +57,34 @@ class PhoneBridge(private val context: Context) {
             WearPaths.epochBatchPath(sequence),
             WearJson.encodeEpochBatch(EpochBatch(sessionId, sequence, epochs)),
         )
+        pruneOldBatches(sequence)
+    }
+
+    /**
+     * Delete batches the phone has had ample opportunity to collect.
+     *
+     * Each batch is its own data item so an uncollected one is never overwritten, but the data
+     * layer's store is finite and a ten-hour night publishes six hundred of them. Retaining an
+     * hour's worth covers any realistic disconnection; a phone that has been out of range longer
+     * than that gets the whole night from the end-of-night summary anyway.
+     */
+    private suspend fun pruneOldBatches(currentSequence: Long) {
+        val stale = currentSequence - RETAINED_BATCHES
+        if (stale < 0) return
+        val nodeId = localNodeId() ?: return
+        runCatching {
+            dataClient.deleteDataItems(
+                Uri.parse("wear://$nodeId${WearPaths.epochBatchPath(stale)}")
+            ).await()
+        }.onFailure { Log.w(TAG, "could not prune batch $stale", it) }
+    }
+
+    private suspend fun localNodeId(): String? {
+        cachedLocalNodeId?.let { return it }
+        return runCatching { nodeClient.localNode.await().id }
+            .onFailure { Log.w(TAG, "could not read the local node id", it) }
+            .getOrNull()
+            ?.also { cachedLocalNodeId = it }
     }
 
     suspend fun publishSummary(summary: SessionSummary) {
@@ -117,7 +146,6 @@ class PhoneBridge(private val context: Context) {
             }
             dataClient.putDataItem(request).await()
         }.onFailure { Log.w(TAG, "could not publish $path", it) }
-        revision++
     }
 
     private suspend fun broadcast(path: String, payload: ByteArray) {
@@ -132,5 +160,8 @@ class PhoneBridge(private val context: Context) {
 
     private companion object {
         const val TAG = "PhoneBridge"
+
+        /** An hour of epoch batches, at one batch a minute. */
+        const val RETAINED_BATCHES = 60L
     }
 }

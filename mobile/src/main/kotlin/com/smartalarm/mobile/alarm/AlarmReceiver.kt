@@ -14,12 +14,17 @@ class AlarmReceiver : BroadcastReceiver() {
         val sessions = SmartAlarmApp.from(context).sessions
 
         when (intent.action) {
+            // The watch decided; ring regardless of how quiet it has been.
+            ACTION_FIRE -> sessions.onRingNow(sessionId, reason.ifEmpty { "Time to wake up" })
+            // The deadline arrived on its own; ring only if the wake mode or the watch's silence
+            // calls for it.
             ACTION_FALLBACK -> sessions.onFallbackAlarm(sessionId, reason.ifEmpty { "Time to wake up" })
-            ACTION_SNOOZE_END -> sessions.onFallbackAlarm(sessionId, "Snooze finished")
+            ACTION_SNOOZE_END -> sessions.onRingNow(sessionId, "Snooze finished")
         }
     }
 
     companion object {
+        const val ACTION_FIRE = "com.smartalarm.FIRE_ALARM"
         const val ACTION_FALLBACK = "com.smartalarm.FALLBACK_ALARM"
         const val ACTION_SNOOZE_END = "com.smartalarm.SNOOZE_END"
         const val EXTRA_SESSION_ID = "session_id"

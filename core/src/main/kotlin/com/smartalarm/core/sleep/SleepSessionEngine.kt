@@ -82,6 +82,13 @@ class SleepSessionEngine(
 
     /** Feed one epoch and get the updated live picture. */
     fun onEpoch(features: EpochFeatures): LiveStatus {
+        // The wearable data layer redelivers, and a phone that reconnects after a gap may be
+        // handed a batch it already has. Feeding the same epoch twice would double-count the
+        // night, so anything not strictly newer than the last epoch is dropped.
+        val lastIndex = featureLog.lastOrNull()?.index
+        if (lastIndex != null && features.index <= lastIndex) {
+            return currentStatus(maxOf(features.endMillis, lastDecision.targetMillis.coerceAtLeast(0L)))
+        }
         if (featureLog.isEmpty()) firstEpochStartMillis = features.startMillis
         featureLog += features
         baseline.observe(features.heartRate, features.activityCount, features.hrvProxyMs)

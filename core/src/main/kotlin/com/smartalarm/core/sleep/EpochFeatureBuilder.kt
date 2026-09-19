@@ -178,9 +178,18 @@ class EpochFeatureBuilder(
     }
 
     private fun rollEpochsUpTo(nowMillis: Long) {
-        // Emit an epoch for every boundary crossed, including empty ones during sensor gaps.
-        while (nowMillis - epochStartMillis >= epochMillis) {
+        // Emit an epoch for every boundary crossed, including empty ones: a sensor gap is real
+        // data about the night and should show as a gap, not be silently closed up.
+        var emitted = 0
+        while (nowMillis - epochStartMillis >= epochMillis && emitted < MAX_EPOCHS_PER_ROLL) {
             closeEpoch(epochMillis)
+            emitted++
+        }
+        if (nowMillis - epochStartMillis >= epochMillis) {
+            // Still behind after emitting a sane number of epochs: the clock jumped rather than
+            // the sensors stalling. Skip forward instead of grinding out hours of empty epochs.
+            epochStartMillis = nowMillis
+            resetAccumulators()
         }
     }
 
@@ -244,6 +253,9 @@ class EpochFeatureBuilder(
         /** Band-passed magnitude above which the wrist counts as moving, in g. */
         const val MOVEMENT_THRESHOLD_G = 0.02f
         private const val ZERO_CROSS_DEADBAND_G = 0.008f
+
+        /** Two hours of gap filling; past that a clock jump is the likelier explanation. */
+        private const val MAX_EPOCHS_PER_ROLL = 240
     }
 }
 
