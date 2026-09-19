@@ -46,6 +46,7 @@ personalised.
 | **Live tracking** | Stage, heart rate, cycles completed, and a hypnogram that fills in as the night goes |
 | **History** | Every night with its hypnogram, the cycles that were found, and how good the waking moment was |
 | **Works apart** | The watch tracks and buzzes with no phone in range; the phone rings anyway if the watch goes quiet |
+| **System check** | Proves the sensors, the watch link and the alarm all work — on an evening that doesn't matter |
 
 ## How the two apps fit together
 
@@ -91,6 +92,16 @@ permission, is in **[docs/INSTALL.md](docs/INSTALL.md)**.
 > Both APKs are signed with the same key on purpose. Wear OS only lets a phone app and a watch
 > app talk to each other if they share an application id *and* a signing certificate. Install
 > the two from the same release or they will not pair.
+
+## Test it before you trust it
+
+Settings → **Test everything now**. It takes about 40 seconds and it is not a simulation: it
+holds the watch's real sensors open, runs the data through the same analysis used overnight,
+sends it to the phone over the real link, then buzzes the watch and rings the phone the way a
+real morning would — and asks whether you actually felt and heard it.
+
+Every red line tells you what to do about it. Worth running once before the first night you
+depend on it.
 
 ## Use it
 

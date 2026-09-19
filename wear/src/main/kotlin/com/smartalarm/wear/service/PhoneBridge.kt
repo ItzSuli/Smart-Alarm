@@ -7,6 +7,7 @@ import com.google.android.gms.wearable.PutDataRequest
 import com.google.android.gms.wearable.Wearable
 import com.smartalarm.core.model.EpochFeatures
 import com.smartalarm.core.model.LiveStatus
+import com.smartalarm.core.model.SelfTestResult
 import com.smartalarm.core.model.SessionSummary
 import com.smartalarm.core.protocol.AlarmEvent
 import com.smartalarm.core.protocol.EpochBatch
@@ -85,6 +86,10 @@ class PhoneBridge(private val context: Context) {
             .onFailure { Log.w(TAG, "could not read the local node id", it) }
             .getOrNull()
             ?.also { cachedLocalNodeId = it }
+    }
+
+    suspend fun publishSelfTestResult(result: SelfTestResult) {
+        putData(WearPaths.SELF_TEST_RESULT, WearJson.encodeSelfTestResult(result))
     }
 
     suspend fun publishSummary(summary: SessionSummary) {

@@ -6,6 +6,7 @@ import com.google.android.gms.wearable.DataEventBuffer
 import com.google.android.gms.wearable.MessageEvent
 import com.google.android.gms.wearable.WearableListenerService
 import com.smartalarm.core.model.LiveStatus
+import com.smartalarm.core.model.SelfTestResult
 import com.smartalarm.core.model.SessionSummary
 import com.smartalarm.core.protocol.AlarmEvent
 import com.smartalarm.core.protocol.EpochBatch
@@ -52,6 +53,10 @@ class PhoneWearListenerService : WearableListenerService() {
                 path.startsWith(WearPaths.EPOCH_BATCH) ->
                     runCatching { WearJson.decode<EpochBatch>(payload) }
                         .getOrNull()?.let { sessions.onEpochBatch(it) }
+
+                path == WearPaths.SELF_TEST_RESULT ->
+                    runCatching { WearJson.decode<SelfTestResult>(payload) }
+                        .getOrNull()?.let { sessions.systemCheck.onWatchResult(it) }
 
                 path == WearPaths.SESSION_SUMMARY ->
                     runCatching { WearJson.decode<SessionSummary>(payload) }

@@ -5,6 +5,7 @@ import android.util.Log
 import com.google.android.gms.wearable.PutDataRequest
 import com.google.android.gms.wearable.Wearable
 import com.smartalarm.core.model.AlarmPlan
+import com.smartalarm.core.model.SelfTestRequest
 import com.smartalarm.core.model.SleepProfile
 import com.smartalarm.core.protocol.AlarmEvent
 import com.smartalarm.core.protocol.EventSource
@@ -51,6 +52,10 @@ class WatchBridge(private val context: Context) {
         putData(WearPaths.SESSION_REQUEST, payload)
         return broadcast(WearPaths.EVENT_START, payload)
     }
+
+    /** Ask the watch to run its half of the system check. */
+    suspend fun runSelfTest(request: SelfTestRequest): Boolean =
+        broadcast(WearPaths.EVENT_SELF_TEST, WearJson.encodeSelfTestRequest(request))
 
     suspend fun stopSession(sessionId: String): Boolean =
         broadcast(

@@ -39,6 +39,25 @@ object WatchAlarm {
         }
     }
 
+    /**
+     * A single pass of the real alarm pattern, for the system check.
+     *
+     * Deliberately the same waveform the alarm uses rather than a generic buzz: the point of
+     * the check is to answer "would this actually wake me", and a different pattern would not.
+     * It does not repeat, so it stops on its own if the wearer misses it.
+     */
+    fun testBuzz(context: Context, intensity: Int) {
+        val motor = vibratorOf(context) ?: return
+        vibrator = motor
+        val pattern = escalatingPattern(intensity)
+        val amplitudes = escalatingAmplitudes(intensity, pattern.size)
+        if (motor.hasAmplitudeControl()) {
+            motor.vibrate(VibrationEffect.createWaveform(pattern, amplitudes, NO_REPEAT))
+        } else {
+            motor.vibrate(VibrationEffect.createWaveform(pattern, NO_REPEAT))
+        }
+    }
+
     fun stop(context: Context) {
         (vibrator ?: vibratorOf(context))?.cancel()
         vibrator = null
@@ -131,4 +150,7 @@ object WatchAlarm {
 
     /** Where the loop restarts: past the gentle opening, into the insistent section. */
     private const val REPEAT_FROM_INDEX = 9
+
+    /** Play the waveform once and stop. */
+    private const val NO_REPEAT = -1
 }

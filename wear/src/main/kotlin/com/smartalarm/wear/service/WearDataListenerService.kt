@@ -26,6 +26,7 @@ class WearDataListenerService : WearableListenerService() {
             WearPaths.EVENT_SNOOZE ->
                 SleepTrackingService.send(this, SleepTrackingService.ACTION_SNOOZE)
 
+            WearPaths.EVENT_SELF_TEST -> handleSelfTest(event.data)
             WearPaths.EVENT_PING -> WatchSession.setPhoneConnected(true)
             else -> Log.d(TAG, "ignoring message on ${event.path}")
         }
@@ -43,6 +44,15 @@ class WearDataListenerService : WearableListenerService() {
         } else {
             SleepTrackingService.send(this, SleepTrackingService.ACTION_STOP)
         }
+    }
+
+    private fun handleSelfTest(payload: ByteArray) {
+        val request = runCatching { WearJson.decodeSelfTestRequest(payload) }.getOrElse {
+            Log.w(TAG, "could not read self test request", it)
+            return
+        }
+        // Same background restriction as starting tracking: bounce it through an exact alarm.
+        SelfTestService.startFromBackground(this, request)
     }
 
     override fun onCreate() {

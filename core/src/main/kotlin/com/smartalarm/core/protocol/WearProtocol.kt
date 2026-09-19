@@ -3,6 +3,8 @@ package com.smartalarm.core.protocol
 import com.smartalarm.core.model.AlarmPlan
 import com.smartalarm.core.model.EpochFeatures
 import com.smartalarm.core.model.LiveStatus
+import com.smartalarm.core.model.SelfTestRequest
+import com.smartalarm.core.model.SelfTestResult
 import com.smartalarm.core.model.SessionSummary
 import com.smartalarm.core.model.SleepProfile
 import kotlinx.serialization.Serializable
@@ -40,6 +42,9 @@ object WearPaths {
     /** Watch -> phone: the finished night. */
     const val SESSION_SUMMARY = "$ROOT/summary"
 
+    /** Watch -> phone: the result of a system check. */
+    const val SELF_TEST_RESULT = "$ROOT/selftest"
+
     // --- MessageClient events ---
     /** Either direction: the alarm should sound now. */
     const val EVENT_WAKE_NOW = "$ROOT/event/wake"
@@ -64,6 +69,9 @@ object WearPaths {
 
     /** Reply to [EVENT_PING]. */
     const val EVENT_PONG = "$ROOT/event/pong"
+
+    /** Phone -> watch: run a system check and report back. */
+    const val EVENT_SELF_TEST = "$ROOT/event/selftest"
 
     /** The data item key every payload is stored under. */
     const val KEY_PAYLOAD = "payload"
@@ -141,6 +149,12 @@ object WearJson {
 
     fun encodeStateChanged(value: StateChanged): ByteArray = encode(value)
     fun decodeStateChanged(bytes: ByteArray): StateChanged = decode(bytes)
+
+    fun encodeSelfTestRequest(value: SelfTestRequest): ByteArray = encode(value)
+    fun decodeSelfTestRequest(bytes: ByteArray): SelfTestRequest = decode(bytes)
+
+    fun encodeSelfTestResult(value: SelfTestResult): ByteArray = encode(value)
+    fun decodeSelfTestResult(bytes: ByteArray): SelfTestResult = decode(bytes)
 
     inline fun <reified T> encode(value: T): ByteArray =
         instance.encodeToString(value).toByteArray(Charsets.UTF_8)

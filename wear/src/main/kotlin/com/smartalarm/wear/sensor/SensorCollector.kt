@@ -52,6 +52,12 @@ class SensorCollector(
 
     private var running = false
 
+    /** Observers used by the system check to prove samples really arrive, not just that the
+     *  sensor registered. A sensor that registers and then delivers nothing is a real failure
+     *  mode and otherwise an invisible one. */
+    private var onAccelSample: (() -> Unit)? = null
+    private var onHeartRateSample: ((Float) -> Unit)? = null
+
     private val listener = object : SensorEventListener {
         override fun onSensorChanged(event: SensorEvent) {
             val timestampMillis = wallClockFor(event.timestamp)
@@ -63,6 +69,7 @@ class SensorCollector(
                         event.values[1],
                         event.values[2],
                     )
+                    onAccelSample?.invoke()
                 }
 
                 Sensor.TYPE_HEART_RATE -> {
@@ -76,6 +83,7 @@ class SensorCollector(
                     if (bpm > 0f) {
                         lastHeartRate = bpm
                         builder.addHeartRateSample(timestampMillis, bpm)
+                        onHeartRateSample?.invoke(bpm)
                     }
                 }
             }
@@ -90,8 +98,13 @@ class SensorCollector(
         }
     }
 
-    fun start(): Boolean {
+    fun start(
+        onAccelSample: (() -> Unit)? = null,
+        onHeartRateSample: ((Float) -> Unit)? = null,
+    ): Boolean {
         if (running) return true
+        this.onAccelSample = onAccelSample
+        this.onHeartRateSample = onHeartRateSample
         val accel = accelerometer ?: run {
             Log.e(TAG, "no accelerometer on this device; cannot track sleep")
             return false

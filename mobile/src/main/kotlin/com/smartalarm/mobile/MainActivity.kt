@@ -34,6 +34,7 @@ import com.smartalarm.mobile.ui.screens.HomeScreen
 import com.smartalarm.mobile.ui.screens.LiveScreen
 import com.smartalarm.mobile.ui.screens.NightDetailScreen
 import com.smartalarm.mobile.ui.screens.SettingsScreen
+import com.smartalarm.mobile.ui.screens.SystemCheckScreen
 import com.smartalarm.mobile.ui.theme.NightColors
 import com.smartalarm.mobile.ui.theme.SmartAlarmTheme
 import kotlinx.coroutines.delay
@@ -76,6 +77,8 @@ private fun AppRoot(app: SmartAlarmApp) {
 
     var tab by remember { mutableStateOf(Tab.TONIGHT) }
     var openNight by remember { mutableStateOf<SessionSummary?>(null) }
+    var systemCheckOpen by remember { mutableStateOf(false) }
+    val checkReport by sessions.systemCheck.report.collectAsStateWithLifecycle()
 
     RequestNotificationPermission()
 
@@ -93,10 +96,11 @@ private fun AppRoot(app: SmartAlarmApp) {
             NavigationBar(containerColor = NightColors.Surface, tonalElevation = 0.dp) {
                 Tab.entries.forEach { entry ->
                     NavigationBarItem(
-                        selected = tab == entry && openNight == null,
+                        selected = tab == entry && openNight == null && !systemCheckOpen,
                         onClick = {
                             tab = entry
                             openNight = null
+                            systemCheckOpen = false
                         },
                         icon = {
                             Icon(
@@ -126,6 +130,17 @@ private fun AppRoot(app: SmartAlarmApp) {
     ) { padding ->
         val night = openNight
         when {
+            systemCheckOpen -> SystemCheckScreen(
+                report = checkReport,
+                estimatedSeconds = sessions.systemCheck.estimatedSeconds,
+                onRun = { sessions.systemCheck.start() },
+                onCancel = { sessions.systemCheck.cancel() },
+                onConfirm = { id, yes -> sessions.systemCheck.confirm(id, yes) },
+                onStopTestAlarm = { sessions.systemCheck.stopTestAlarm() },
+                onBack = { systemCheckOpen = false },
+                contentPadding = padding,
+            )
+
             night != null -> NightDetailScreen(
                 night = night,
                 onBack = { openNight = null },
@@ -145,8 +160,10 @@ private fun AppRoot(app: SmartAlarmApp) {
             tab == Tab.SETTINGS -> SettingsScreen(
                 plan = plan,
                 profile = profile,
+                lastCheckVerdict = checkReport.takeIf { it.allChecks.isNotEmpty() }?.verdict,
                 onPlanChange = { sessions.updatePlan(it) },
                 onResetProfile = { app.settings.updateProfile(SleepProfile()) },
+                onOpenSystemCheck = { systemCheckOpen = true },
                 contentPadding = padding,
             )
 

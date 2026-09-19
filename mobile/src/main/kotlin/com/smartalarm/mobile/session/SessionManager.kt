@@ -48,6 +48,9 @@ class SessionManager(
     private val bridge = WatchBridge(context)
     private val scheduler = AlarmScheduler(context)
 
+    /** The system check, so the app can be proven to work on a night that does not matter. */
+    val systemCheck: SystemCheck = SystemCheck(context, settings, bridge, scope)
+
     private var engine: SleepSessionEngine? = null
 
     /** Carried from the watch's wake-now message to the alarm broadcast that acts on it. */

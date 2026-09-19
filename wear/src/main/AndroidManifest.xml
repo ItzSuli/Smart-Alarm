@@ -69,6 +69,11 @@
             android:exported="false" />
 
         <service
+            android:name=".service.SelfTestService"
+            android:exported="false"
+            android:foregroundServiceType="health" />
+
+        <service
             android:name=".service.WearDataListenerService"
             android:exported="true"
             tools:ignore="ExportedService">

@@ -5,6 +5,7 @@ import android.content.Context
 import android.content.Intent
 import android.util.Log
 import com.smartalarm.core.model.AlarmPlan
+import com.smartalarm.core.model.SelfTestRequest
 import com.smartalarm.core.protocol.WearJson
 import kotlinx.serialization.decodeFromString
 
@@ -22,8 +23,21 @@ import kotlinx.serialization.decodeFromString
 class WatchCommandReceiver : BroadcastReceiver() {
 
     override fun onReceive(context: Context, intent: Intent) {
-        if (intent.action != ACTION_START_TRACKING) return
+        when (intent.action) {
+            ACTION_START_TRACKING -> startTracking(context, intent)
+            ACTION_START_SELF_TEST -> startSelfTest(context, intent)
+        }
+    }
 
+    private fun startSelfTest(context: Context, intent: Intent) {
+        val request = intent.getStringExtra(EXTRA_SELF_TEST)
+            ?.let { runCatching { WearJson.instance.decodeFromString<SelfTestRequest>(it) }.getOrNull() }
+            ?: return
+        Log.i(TAG, "running the system check on the phone's behalf")
+        SelfTestService.start(context, request)
+    }
+
+    private fun startTracking(context: Context, intent: Intent) {
         val plan = intent.getStringExtra(EXTRA_PLAN)
             ?.let { runCatching { WearJson.instance.decodeFromString<AlarmPlan>(it) }.getOrNull() }
             ?: WatchSession.plan.value
@@ -35,7 +49,9 @@ class WatchCommandReceiver : BroadcastReceiver() {
 
     companion object {
         const val ACTION_START_TRACKING = "com.smartalarm.wear.START_TRACKING"
+        const val ACTION_START_SELF_TEST = "com.smartalarm.wear.START_SELF_TEST"
         const val EXTRA_PLAN = "plan"
+        const val EXTRA_SELF_TEST = "self_test"
         const val EXTRA_SESSION_ID = "session_id"
         private const val TAG = "WatchCommandReceiver"
     }

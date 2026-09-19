@@ -66,6 +66,20 @@ class AlarmRingService : Service() {
                 stopEverything()
                 return START_NOT_STICKY
             }
+
+            ACTION_TEST -> {
+                // The system check's ring: the real tone and the real motor, briefly, and
+                // without the full-screen alarm screen or any session side effects.
+                val millis = intent.getLongExtra(EXTRA_TEST_MILLIS, 3_000L)
+                startForeground(SmartAlarmApp.NOTIFICATION_ALARM, buildNotification("System check", 0))
+                acquireWakeLock()
+                startRinging()
+                scope.launch {
+                    delay(millis)
+                    stopEverything()
+                }
+                return START_NOT_STICKY
+            }
         }
 
         val reason = intent?.getStringExtra(EXTRA_REASON).orEmpty()
@@ -226,6 +240,8 @@ class AlarmRingService : Service() {
         const val ACTION_STOP = "com.smartalarm.RING_STOP"
         const val ACTION_SNOOZE = "com.smartalarm.RING_SNOOZE"
         const val ACTION_DISMISS = "com.smartalarm.RING_DISMISS"
+        const val ACTION_TEST = "com.smartalarm.RING_TEST"
+        const val EXTRA_TEST_MILLIS = "test_millis"
         const val EXTRA_REASON = "reason"
         const val EXTRA_QUALITY = "quality"
 
@@ -245,6 +261,20 @@ class AlarmRingService : Service() {
                 .putExtra(EXTRA_QUALITY, quality)
             runCatching { context.startForegroundService(intent) }
                 .onFailure { Log.e(TAG, "the system refused to start the alarm service", it) }
+        }
+
+        /**
+         * Ring briefly for the system check. Started from a visible activity, which is what
+         * makes the foreground-service start legal without going through AlarmManager.
+         */
+        fun startTest(context: Context, millis: Long) {
+            runCatching {
+                context.startForegroundService(
+                    Intent(context, AlarmRingService::class.java)
+                        .setAction(ACTION_TEST)
+                        .putExtra(EXTRA_TEST_MILLIS, millis)
+                )
+            }.onFailure { Log.e(TAG, "the system refused to start the test ring", it) }
         }
 
         fun stop(context: Context) {

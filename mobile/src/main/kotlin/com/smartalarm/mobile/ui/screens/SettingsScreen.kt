@@ -34,8 +34,10 @@ import kotlin.math.roundToInt
 fun SettingsScreen(
     plan: AlarmPlan,
     profile: SleepProfile,
+    lastCheckVerdict: String?,
     onPlanChange: ((AlarmPlan) -> AlarmPlan) -> Unit,
     onResetProfile: () -> Unit,
+    onOpenSystemCheck: () -> Unit,
     contentPadding: PaddingValues,
 ) {
     Column(
@@ -50,6 +52,9 @@ fun SettingsScreen(
         Text("Settings", style = MaterialTheme.typography.headlineMedium, color = NightColors.TextPrimary)
 
         Spacer(Modifier.height(20.dp))
+        SystemCheckEntry(lastCheckVerdict, onOpenSystemCheck)
+
+        Spacer(Modifier.height(16.dp))
         SettingsCard("Alarm") {
             SettingSwitch(
                 title = "Gentle volume ramp",
@@ -162,6 +167,49 @@ fun SettingsScreen(
             )
         }
         Spacer(Modifier.height(40.dp))
+    }
+}
+
+/**
+ * The way to find out whether any of this works without betting a morning on it.
+ *
+ * Sits at the top of settings rather than buried at the bottom, because the one evening it
+ * matters most is the first one, before the user has any reason to trust the app.
+ */
+@Composable
+private fun SystemCheckEntry(lastVerdict: String?, onClick: () -> Unit) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(20.dp))
+            .background(NightColors.PrimaryDeep.copy(alpha = 0.22f))
+            .clickable(onClick = onClick)
+            .padding(18.dp),
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Column(Modifier.weight(1f)) {
+                Text(
+                    "Test everything now",
+                    style = MaterialTheme.typography.titleMedium,
+                    color = NightColors.TextPrimary,
+                )
+                Text(
+                    "Checks the sensors, the link to the watch and the alarm itself — " +
+                        "takes about 40 seconds.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = NightColors.TextSecondary,
+                )
+            }
+            Text("›", style = MaterialTheme.typography.headlineMedium, color = NightColors.Primary)
+        }
+        if (lastVerdict != null) {
+            Spacer(Modifier.height(8.dp))
+            Text(
+                "Last check: $lastVerdict",
+                style = MaterialTheme.typography.labelSmall,
+                color = NightColors.TextTertiary,
+            )
+        }
     }
 }
 
