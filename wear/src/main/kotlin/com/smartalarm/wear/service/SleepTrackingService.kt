@@ -1,5 +1,6 @@
 package com.smartalarm.wear.service
 
+import android.app.AlarmManager
 import android.app.Notification
 import android.app.PendingIntent
 import android.app.Service
@@ -355,6 +356,8 @@ class SleepTrackingService : Service() {
         private const val STATUS_PUSH_INTERVAL_MILLIS = 60_000L
         private const val PREFLUSH_MILLIS = 5 * 60_000L
         private const val MAX_SESSION_MILLIS = 13 * 60 * 60 * 1000L
+        private const val REQUEST_START = 200
+        private const val BACKGROUND_START_DELAY_MILLIS = 200L
 
         private val clock = object {
             private val formatter = SimpleDateFormat("HH:mm", Locale.getDefault())
@@ -373,8 +376,52 @@ class SleepTrackingService : Service() {
             }
         }
 
+        /**
+         * Start tracking from a background context, such as the phone's start message.
+         *
+         * Bounced through AlarmManager rather than started directly: from Android 12 an app in
+         * the background may not start a foreground service, and the data-layer listener that
+         * receives the phone's command runs in exactly that state. An exact alarm firing does
+         * carry the exemption.
+         */
+        fun startFromBackground(context: Context, plan: AlarmPlan, sessionId: String?) {
+            val intent = Intent(context, WatchCommandReceiver::class.java)
+                .setAction(WatchCommandReceiver.ACTION_START_TRACKING)
+                .putExtra(
+                    WatchCommandReceiver.EXTRA_PLAN,
+                    com.smartalarm.core.protocol.WearJson.instance.encodeToString(plan),
+                )
+                .putExtra(WatchCommandReceiver.EXTRA_SESSION_ID, sessionId)
+            val operation = PendingIntent.getBroadcast(
+                context, REQUEST_START, intent,
+                PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
+            )
+            val alarmManager = context.getSystemService(AlarmManager::class.java)
+            val triggerAt = System.currentTimeMillis() + BACKGROUND_START_DELAY_MILLIS
+
+            val scheduled = runCatching {
+                alarmManager.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, triggerAt, operation)
+            }.onFailure { Log.w(TAG, "could not schedule the start alarm", it) }.isSuccess
+
+            if (!scheduled) {
+                // No exact-alarm permission. Worth trying directly: it succeeds whenever the
+                // watch app happens to be open, which is the case when the user pressed start
+                // on the watch rather than the phone.
+                runCatching { start(context, plan, sessionId) }
+                    .onFailure { Log.e(TAG, "could not start tracking at all", it) }
+            }
+        }
+
+        /**
+         * Deliver a command to the running service. Safe to call when nothing is tracking: the
+         * system refuses the start, and there was nothing to command anyway.
+         */
         fun send(context: Context, action: String) {
-            context.startService(Intent(context, SleepTrackingService::class.java).setAction(action))
+            runCatching {
+                context.startService(
+                    Intent(context, SleepTrackingService::class.java).setAction(action)
+                )
+            }.onFailure { Log.d(TAG, "no tracking service to receive $action", it) }
         }
 
         private fun Intent.planExtra(): AlarmPlan? =

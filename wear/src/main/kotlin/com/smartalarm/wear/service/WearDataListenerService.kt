@@ -39,7 +39,7 @@ class WearDataListenerService : WearableListenerService() {
         WatchSession.setProfile(request.profile)
         WatchSession.updatePlan(this, request.plan)
         if (request.start) {
-            SleepTrackingService.start(this, request.plan, request.sessionId)
+            SleepTrackingService.startFromBackground(this, request.plan, request.sessionId)
         } else {
             SleepTrackingService.send(this, SleepTrackingService.ACTION_STOP)
         }

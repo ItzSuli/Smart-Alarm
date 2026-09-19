@@ -12,7 +12,15 @@
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_HEALTH" />
-    <uses-permission android:name="android.permission.WAKE_LOCK" />
+
+    <!-- The phone's "start" arrives in the background, where a foreground service may not be
+         started directly; it is bounced through an exact alarm, which carries the exemption. -->
+    <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
+    <uses-permission android:name="android.permission.USE_EXACT_ALARM" />
+
+    <!-- Lets the dismiss screen appear over the watch face when the alarm fires, rather than
+         leaving a notification to be found. -->
+    <uses-permission android:name="android.permission.USE_FULL_SCREEN_INTENT" />
 
     <application
         android:name=".WearApp"
@@ -55,6 +63,10 @@
             android:name=".service.SleepTrackingService"
             android:exported="false"
             android:foregroundServiceType="health" />
+
+        <receiver
+            android:name=".service.WatchCommandReceiver"
+            android:exported="false" />
 
         <service
             android:name=".service.WearDataListenerService"
