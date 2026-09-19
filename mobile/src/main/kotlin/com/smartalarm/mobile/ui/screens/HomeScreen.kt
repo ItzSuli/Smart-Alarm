@@ -28,6 +28,8 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.produceState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -43,6 +45,7 @@ import com.smartalarm.mobile.ui.formatClock
 import com.smartalarm.mobile.ui.formatDurationShort
 import com.smartalarm.mobile.ui.relativeDayLabel
 import com.smartalarm.mobile.ui.theme.NightColors
+import kotlinx.coroutines.delay
 import kotlin.math.roundToInt
 import androidx.compose.ui.res.painterResource
 import com.smartalarm.mobile.R
@@ -65,7 +68,15 @@ fun HomeScreen(
     onDismissMessage: () -> Unit,
     contentPadding: PaddingValues,
 ) {
-    val now = System.currentTimeMillis()
+    // Every projected wake time on this screen is relative to now, so the screen has to keep
+    // its own clock: leaving "now" fixed at composition means the times silently go stale
+    // while the user is deciding.
+    val now by produceState(System.currentTimeMillis()) {
+        while (true) {
+            value = System.currentTimeMillis()
+            delay(20_000)
+        }
+    }
     val cycleMinutes = if (profile.cycleSamples > 0) profile.cycleMinutes else plan.baseCycleMinutes
     val latency = if (profile.latencySamples > 0) profile.sleepLatencyMinutes
     else plan.sleepLatencyMinutes.toFloat()

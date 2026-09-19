@@ -87,7 +87,7 @@ class SleepSessionEngine(
         // night, so anything not strictly newer than the last epoch is dropped.
         val lastIndex = featureLog.lastOrNull()?.index
         if (lastIndex != null && features.index <= lastIndex) {
-            return currentStatus(maxOf(features.endMillis, lastDecision.targetMillis.coerceAtLeast(0L)))
+            return currentStatus(featureLog.last().endMillis)
         }
         if (featureLog.isEmpty()) firstEpochStartMillis = features.startMillis
         featureLog += features
