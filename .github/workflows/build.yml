@@ -1,0 +1,62 @@
+name: Build
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: Test and build both APKs
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Run the sleep engine's test suite
+        run: ./gradlew :core:test --no-daemon
+
+      - name: Build the phone APK
+        run: ./gradlew :mobile:assembleRelease --no-daemon
+
+      - name: Build the watch APK
+        run: ./gradlew :wear:assembleRelease --no-daemon
+
+      - name: Check both APKs share a signing certificate
+        run: |
+          # The Wearable Data Layer refuses to connect apps signed with different keys, and a
+          # mismatch is invisible until you try to use them together on real hardware.
+          BT=$(ls -d "$ANDROID_HOME"/build-tools/* | sort -V | tail -1)
+          phone=$("$BT/apksigner" verify --print-certs mobile/build/outputs/apk/release/mobile-release.apk | grep -m1 'SHA-256 digest')
+          watch=$("$BT/apksigner" verify --print-certs wear/build/outputs/apk/release/wear-release.apk | grep -m1 'SHA-256 digest')
+          echo "phone: $phone"
+          echo "watch: $watch"
+          if [ "$phone" != "$watch" ]; then
+            echo "::error::The phone and watch APKs are signed with different keys; they will not pair."
+            exit 1
+          fi
+
+      - name: Upload test report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-report
+          path: core/build/reports/tests/test
+
+      - name: Upload APKs
+        uses: actions/upload-artifact@v4
+        with:
+          name: apks
+          path: |
+            mobile/build/outputs/apk/release/mobile-release.apk
+            wear/build/outputs/apk/release/wear-release.apk
