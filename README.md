@@ -126,6 +126,12 @@ You need JDK 17+ and an Android SDK with API 35. The repo ships a signing key so
 pair out of the box; see [docs/INSTALL.md](docs/INSTALL.md#using-your-own-signing-key) to
 replace it with your own.
 
+### Cutting a release
+
+Bump `release-version.txt` and push. CI creates the tag, builds both APKs from that commit,
+checks they share a signing certificate, and publishes them with checksums. Re-running it on an
+existing version is a no-op rather than an error.
+
 ## Accuracy, honestly
 
 A wrist sensor is not an EEG. Deep and REM sleep are *estimated* from how still you are and

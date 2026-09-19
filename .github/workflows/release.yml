@@ -1,13 +1,21 @@
 name: Release
 
+# Releases are cut by bumping release-version.txt and pushing. The workflow creates the tag,
+# builds both APKs from that commit and publishes them.
+#
+# Tagging locally and pushing the tag would be the conventional trigger, and is kept below for
+# anyone who prefers it — but a version file is a change CI can make on your behalf, and a tag
+# is not, which matters when whatever is pushing has no permission to create tag refs.
 on:
   push:
-    tags: ["v*"]
+    paths:
+      - "release-version.txt"
+      - ".github/workflows/release.yml"
   workflow_dispatch:
     inputs:
-      tag:
-        description: "Tag to release, e.g. v1.0.0"
-        required: true
+      version:
+        description: "Version to release, e.g. v1.0.1. Defaults to release-version.txt."
+        required: false
 
 permissions:
   contents: write
@@ -19,33 +27,109 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Work out the version
+        id: version
+        run: |
+          version="${{ github.event.inputs.version }}"
+          if [ -z "$version" ]; then
+            version=$(tr -d ' \t\n\r' < release-version.txt)
+          fi
+          case "$version" in
+            v*) ;;
+            *) version="v$version" ;;
+          esac
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "Releasing $version"
+
+      - name: Skip if this release already exists
+        id: existing
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          # Makes the workflow idempotent: re-running it, or pushing an unrelated change to
+          # this file, must not fail or clobber a published release.
+          if gh release view "${{ steps.version.outputs.version }}" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "Release ${{ steps.version.outputs.version }} already exists; nothing to do."
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          fi
 
       - name: Set up JDK 17
+        if: steps.existing.outputs.exists == 'false'
         uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: "17"
 
       - name: Set up Gradle
+        if: steps.existing.outputs.exists == 'false'
         uses: gradle/actions/setup-gradle@v4
 
       - name: Run the sleep engine's test suite
+        if: steps.existing.outputs.exists == 'false'
         run: ./gradlew :core:test --no-daemon
 
       - name: Build both APKs
+        if: steps.existing.outputs.exists == 'false'
         run: ./gradlew :mobile:assembleRelease :wear:assembleRelease --no-daemon
 
-      - name: Name the APKs for humans
+      - name: Name the APKs for humans and check they pair
+        if: steps.existing.outputs.exists == 'false'
         run: |
           mkdir -p release-artifacts
           cp mobile/build/outputs/apk/release/mobile-release.apk release-artifacts/smartalarm-phone.apk
           cp wear/build/outputs/apk/release/wear-release.apk release-artifacts/smartalarm-watch.apk
+
+          # Wear OS refuses to connect a phone app and a watch app signed with different keys,
+          # and the failure is invisible until you try to use them together on real hardware.
+          BT=$(ls -d "$ANDROID_HOME"/build-tools/* | sort -V | tail -1)
+          phone=$("$BT/apksigner" verify --print-certs release-artifacts/smartalarm-phone.apk | grep -m1 'SHA-256 digest')
+          watch=$("$BT/apksigner" verify --print-certs release-artifacts/smartalarm-watch.apk | grep -m1 'SHA-256 digest')
+          if [ "$phone" != "$watch" ]; then
+            echo "::error::The phone and watch APKs are signed with different keys; they would never pair."
+            exit 1
+          fi
+          echo "Both APKs signed with: $phone"
+
           cd release-artifacts && sha256sum *.apk > checksums.txt && cat checksums.txt
 
       - name: Publish the release
+        if: steps.existing.outputs.exists == 'false'
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ github.event.inputs.tag || github.ref_name }}
+          tag_name: ${{ steps.version.outputs.version }}
+          name: Smart Alarm ${{ steps.version.outputs.version }}
+          body: |
+            ## Install
+
+            | file | goes on |
+            |---|---|
+            | `smartalarm-phone.apk` | your Android phone |
+            | `smartalarm-watch.apk` | your Galaxy Watch 4 |
+
+            **Install both from this release.** Wear OS only lets a phone app and a watch app
+            talk to each other if they share an application id *and* a signing certificate.
+            Mixing releases means the two will install fine and then never see each other.
+
+            Phone: open the APK on the device and allow installs from this source.
+
+            Watch: sideload over ADB —
+
+            ```
+            adb pair <watch-ip>:<pairing-port>
+            adb connect <watch-ip>:5555
+            adb -s <watch-ip>:5555 install smartalarm-watch.apk
+            adb -s <watch-ip>:5555 shell pm grant com.smartalarm android.permission.BODY_SENSORS
+            ```
+
+            Full instructions, including enabling developer mode on the watch, are in
+            [docs/INSTALL.md](https://github.com/${{ github.repository }}/blob/${{ github.sha }}/docs/INSTALL.md).
+
+            `checksums.txt` has the SHA-256 of both APKs.
           files: |
             release-artifacts/smartalarm-phone.apk
             release-artifacts/smartalarm-watch.apk
