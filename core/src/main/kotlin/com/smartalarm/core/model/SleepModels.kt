@@ -178,6 +178,14 @@ data class AlarmPlan(
     val snoozeMinutes: Int = 9,
     /** Gradually ramp the alarm volume instead of starting at full blast. */
     val gentleVolumeRamp: Boolean = true,
+    /**
+     * Ring the phone anyway if the watch stops reporting, whatever [wakeMode] says.
+     *
+     * A flat watch battery or a Bluetooth drop should not mean sleeping through the morning,
+     * so the phone keeps an alarm scheduled at the hard deadline as a backstop even in
+     * watch-only mode. It is cancelled the moment the watch checks in again.
+     */
+    val phoneBackupIfWatchSilent: Boolean = true,
 ) {
     init {
         require(cycles in MIN_CYCLES..MAX_CYCLES) { "cycles must be $MIN_CYCLES..$MAX_CYCLES" }

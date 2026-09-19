@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- Crescent moon: a full disc with a second disc subtracted from its upper right. -->
+    <group android:translateX="0" android:translateY="0">
+        <path
+            android:pathData="M62,30 A24,24 0 1,0 62,78 A19,19 0 1,1 62,30 Z"
+            android:fillColor="#FFE9D8FF" />
+    </group>
+    <!-- Three stars, largest to smallest. -->
+    <path
+        android:pathData="M74,36 l2.2,5 5,2.2 -5,2.2 -2.2,5 -2.2,-5 -5,-2.2 5,-2.2 Z"
+        android:fillColor="#FFB9A2FF" />
+    <path
+        android:pathData="M80,58 l1.5,3.4 3.4,1.5 -3.4,1.5 -1.5,3.4 -1.5,-3.4 -3.4,-1.5 3.4,-1.5 Z"
+        android:fillColor="#FF8E7BFF" />
+    <path
+        android:pathData="M36,26 l1.1,2.5 2.5,1.1 -2.5,1.1 -1.1,2.5 -1.1,-2.5 -2.5,-1.1 2.5,-1.1 Z"
+        android:fillColor="#FF7BE8FF" />
+</vector>

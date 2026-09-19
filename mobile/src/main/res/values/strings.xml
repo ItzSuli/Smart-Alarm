@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Smart Alarm</string>
+    <string name="alarm_channel_name">Alarm</string>
+    <string name="alarm_channel_description">The wake-up alarm itself</string>
+    <string name="session_channel_name">Sleep tracking</string>
+    <string name="session_channel_description">Shows the night in progress</string>
+</resources>

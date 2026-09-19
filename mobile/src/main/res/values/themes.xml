@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="Theme.SmartAlarm" parent="android:Theme.Material.NoActionBar">
+        <item name="android:windowBackground">@color/window_background</item>
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+        <item name="android:windowLightStatusBar">false</item>
+    </style>
+
+    <style name="Theme.SmartAlarm.Alarm" parent="Theme.SmartAlarm">
+        <item name="android:windowShowWallpaper">false</item>
+        <item name="android:windowBackground">@color/alarm_background</item>
+    </style>
+</resources>
